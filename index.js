@@ -6,7 +6,25 @@ const PDFDocument = require('pdfkit');
 const config = require('./config');
 
 const port = Number(process.env.PORT || 3000);
-const labelPageSize = [809.25, 559.5];
+const POINTS_PER_INCH = 72;
+const MM_PER_INCH = 25.4;
+const labelDimensionsMm = {
+  width: 125,
+  height: 80,
+  rightHeader: 25,
+  innerLeftMargin: 3,
+  topMargin: 3,
+  innerRightMargin: 3,
+  bottomMargin: 3
+};
+const labelPageSize = [
+  mmToPoints(labelDimensionsMm.width),
+  mmToPoints(labelDimensionsMm.height)
+];
+
+function mmToPoints(mm) {
+  return (mm / MM_PER_INCH) * POINTS_PER_INCH;
+}
 
 function getClient(url) {
   return url.startsWith('https:') ? https : http;
@@ -90,32 +108,57 @@ function parseSisprobio(text) {
 }
 
 function renderPage(doc, pageLines, options) {
-  const marginX = 18;
-  const marginY = 24;
   const pageHeight = doc.page.height;
   const pageWidth = doc.page.width;
-  const contentWidth = pageWidth - marginX * 2;
-  let y = marginY;
+  const contentX = mmToPoints(labelDimensionsMm.innerLeftMargin);
+  const topMargin = mmToPoints(labelDimensionsMm.topMargin);
+  const rightMargin = mmToPoints(labelDimensionsMm.rightHeader + labelDimensionsMm.innerRightMargin);
+  const bottomMargin = mmToPoints(labelDimensionsMm.bottomMargin);
+  const contentWidth = pageWidth - contentX - rightMargin;
+  const contentHeight = pageHeight - topMargin - bottomMargin;
+  const pageScale = calculatePageScale(pageLines, options, contentHeight);
+  let y = topMargin;
 
   for (const line of pageLines) {
     const fontName = line.alternateFont ? options.secondaryFont : options.primaryFont;
-    const fontSize = line.alternateFont ? options.secondaryFontSize : options.primaryFontSize;
-    const lineGap = line.alternateFont ? options.secondaryLineGap : options.primaryLineGap;
+    const fontSize = (line.alternateFont ? options.secondaryFontSize : options.primaryFontSize) * pageScale;
+    const lineGap = (line.alternateFont ? options.secondaryLineGap : options.primaryLineGap) * pageScale;
 
     doc.font(fontName);
     doc.fontSize(fontSize);
     doc.fillColor('#111111');
-    doc.text(line.text, marginX, y, {
-      width: contentWidth,
+    const lineWidth = doc.widthOfString(line.text);
+    const horizontalScale = lineWidth > contentWidth ? contentWidth / lineWidth : 1;
+
+    doc.save();
+    doc.translate(contentX, y);
+    if (horizontalScale < 1) {
+      doc.scale(horizontalScale, 1);
+    }
+    doc.text(line.text, 0, 0, {
       lineBreak: false
     });
+    doc.restore();
 
     y += lineGap;
 
-    if (y > pageHeight - marginY) {
+    if (y > pageHeight - bottomMargin) {
       break;
     }
   }
+}
+
+function calculatePageScale(pageLines, options, contentHeight) {
+  let totalHeight = 0;
+
+  for (const line of pageLines) {
+    const lineGap = line.alternateFont ? options.secondaryLineGap : options.primaryLineGap;
+    totalHeight += lineGap;
+  }
+
+  const heightScale = totalHeight > 0 ? Math.min(1, contentHeight / totalHeight) : 1;
+
+  return heightScale;
 }
 
 function streamPdf(pages, res, fileName) {
@@ -150,10 +193,10 @@ function streamPdf(pages, res, fileName) {
   const renderOptions = {
     primaryFont: 'Courier-Bold',
     secondaryFont: 'Courier',
-    primaryFontSize: 10.8,
-    secondaryFontSize: 10.4,
-    primaryLineGap: 16,
-    secondaryLineGap: 15
+    primaryFontSize: 8,
+    secondaryFontSize: 7.6,
+    primaryLineGap: 10,
+    secondaryLineGap: 9.5
   };
 
   for (const pageLines of pages) {
