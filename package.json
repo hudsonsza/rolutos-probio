@@ -1,0 +1,14 @@
+{
+  "name": "etiquetas-node",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "description": "Node.js port of Unit_Principal.pas (PDF output)",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "pdfkit": "^0.14.0"
+  }
+}
