@@ -172,7 +172,7 @@ function streamPdf(pages, res, fileName) {
     margin: 0,
     info: {
       Title: fileName,
-      Author: 'Codex',
+      Author: 'Probio',
       Subject: 'SISProbio Labels'
     }
   });
