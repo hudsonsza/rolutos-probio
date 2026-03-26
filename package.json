@@ -6,7 +6,8 @@
   "description": "Node.js port of Unit_Principal.pas (PDF output)",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "dev": "node --watch index.js"
   },
   "dependencies": {
     "pdfkit": "^0.14.0"

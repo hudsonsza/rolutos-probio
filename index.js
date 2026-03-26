@@ -8,13 +8,14 @@ const config = require('./config');
 const port = Number(process.env.PORT || 3000);
 const POINTS_PER_INCH = 72;
 const MM_PER_INCH = 25.4;
+const PDF_PAGE_SIZE = 'A4';
 const labelDimensionsMm = {
-  width: 125,
-  height: 80,
-  rightHeader: 25,
+  width: 80,
+  height: 125,
+  paddingTop: 0,
   innerLeftMargin: 2,
   topMargin: 2,
-  innerRightMargin: 2,
+  innerRightMargin: 25,
   bottomMargin: 2
 };
 const labelPageSize = [
@@ -110,14 +111,47 @@ function parseSisprobio(text) {
 function renderPage(doc, pageLines, options) {
   const pageHeight = doc.page.height;
   const pageWidth = doc.page.width;
-  const contentX = mmToPoints(labelDimensionsMm.innerLeftMargin);
+  const labelWidth = labelPageSize[0];
+  const labelHeight = labelPageSize[1];
+  const labelOriginX = (pageWidth - labelWidth) / 2;
+  const labelOriginY = (pageHeight - labelHeight) / 2;
+  const paddingTop = mmToPoints(labelDimensionsMm.paddingTop);
+  const leftMargin = mmToPoints(labelDimensionsMm.innerLeftMargin);
   const topMargin = mmToPoints(labelDimensionsMm.topMargin);
-  const rightMargin = mmToPoints(labelDimensionsMm.rightHeader + labelDimensionsMm.innerRightMargin);
+  const rightMargin = mmToPoints(labelDimensionsMm.innerRightMargin);
   const bottomMargin = mmToPoints(labelDimensionsMm.bottomMargin);
-  const contentWidth = pageWidth - contentX - rightMargin;
-  const contentHeight = pageHeight - topMargin - bottomMargin;
+  const outerAreaX = labelOriginX;
+  const outerAreaY = labelOriginY;
+  const outerAreaWidth = labelWidth;
+  const outerAreaHeight = labelHeight;
+  const contentCenterX = outerAreaX + (outerAreaWidth / 2);
+  const contentCenterY = outerAreaY + (outerAreaHeight / 2);
+  const isRotatedLeft = options.rotateContentLeft;
+  const logicalAreaWidth = isRotatedLeft ? outerAreaHeight : outerAreaWidth;
+  const logicalAreaHeight = isRotatedLeft ? outerAreaWidth : outerAreaHeight;
+  const logicalAreaX = contentCenterX - (logicalAreaWidth / 2);
+  const logicalAreaY = contentCenterY - (logicalAreaHeight / 2);
+  const contentX = logicalAreaX + leftMargin;
+  const contentY = logicalAreaY + paddingTop + topMargin;
+  const contentWidth = logicalAreaWidth - leftMargin - rightMargin;
+  const contentHeight = logicalAreaHeight - paddingTop - topMargin - bottomMargin;
   const pageScale = calculatePageScale(pageLines, options, contentHeight);
-  let y = topMargin;
+  const contentBottomY = contentY + contentHeight;
+  let y = contentY;
+
+  if (isRotatedLeft) {
+    doc.save();
+    doc.rotate(-90, { origin: [contentCenterX, contentCenterY] });
+  }
+
+  if (options.activeBorder) {
+    doc.save();
+    doc.lineWidth(options.borderWidth);
+    doc.strokeColor(options.borderColor);
+    doc.rect(logicalAreaX, logicalAreaY, logicalAreaWidth, logicalAreaHeight);
+    doc.stroke();
+    doc.restore();
+  }
 
   for (const line of pageLines) {
     const fontName = line.alternateFont ? options.secondaryFont : options.primaryFont;
@@ -142,9 +176,13 @@ function renderPage(doc, pageLines, options) {
 
     y += lineGap;
 
-    if (y > pageHeight - bottomMargin) {
+    if (y > contentBottomY) {
       break;
     }
+  }
+
+  if (isRotatedLeft) {
+    doc.restore();
   }
 }
 
@@ -168,7 +206,7 @@ function streamPdf(pages, res, fileName) {
 
   const doc = new PDFDocument({
     autoFirstPage: false,
-    size: labelPageSize,
+    size: PDF_PAGE_SIZE,
     margin: 0,
     info: {
       Title: fileName,
@@ -196,12 +234,16 @@ function streamPdf(pages, res, fileName) {
     primaryFontSize: 8,
     secondaryFontSize: 8,
     primaryLineGap: 10,
-    secondaryLineGap: 10
+    secondaryLineGap: 10,
+    rotateContentLeft: true,
+    activeBorder: true,
+    borderColor: '#111111',
+    borderWidth: 0.8
   };
 
   for (const pageLines of pages) {
     doc.addPage({
-      size: labelPageSize,
+      size: PDF_PAGE_SIZE,
       margin: 0
     });
     renderPage(doc, pageLines, renderOptions);
