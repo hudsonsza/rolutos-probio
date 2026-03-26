@@ -9,12 +9,12 @@ const port = Number(process.env.PORT || 3000);
 const POINTS_PER_INCH = 72;
 const MM_PER_INCH = 25.4;
 const labelDimensionsMm = {
-  width: 120,
+  width: 125,
   height: 80,
-  innerLeftMargin: 3,
-  topMargin: 3,
-  innerRightMargin: 3,
-  bottomMargin: 3
+  innerLeftMargin: 2,
+  topMargin: 2,
+  innerRightMargin: 25,
+  bottomMargin: 1
 };
 
 const options = {
@@ -22,7 +22,7 @@ const options = {
   copies: 1,
   orientation: 'landscape',
   paperSize: {
-    width: 120,
+    width: 125,
     height: 80
   }
 };
