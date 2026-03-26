@@ -12,12 +12,23 @@ const PAGE_ROTATION_DEGREES = 270;
 const labelDimensionsMm = {
   width: 125,
   height: 80,
-  rightHeader: 25,
-  innerLeftMargin: 3,
-  topMargin: 3,
-  innerRightMargin: 3,
-  bottomMargin: 3
+  innerLeftMargin: 0,
+  topMargin: 0,
+  innerRightMargin: 25,
+  bottomMargin: 0
 };
+
+const options = {
+  printer: 'Minha Impressora',
+  copies: 1,
+  orientation: 'portrait',
+  paperSize: {
+    width: 125,
+    height: 80
+  }
+};
+
+
 const labelPageSize = [
   mmToPoints(labelDimensionsMm.width),
   mmToPoints(labelDimensionsMm.height)
@@ -113,7 +124,7 @@ function renderPage(doc, pageLines, options) {
   const pageWidth = doc.page.width;
   const contentX = mmToPoints(labelDimensionsMm.innerLeftMargin);
   const topMargin = mmToPoints(labelDimensionsMm.topMargin);
-  const rightMargin = mmToPoints(labelDimensionsMm.rightHeader + labelDimensionsMm.innerRightMargin);
+  const rightMargin = mmToPoints(labelDimensionsMm.innerRightMargin);
   const bottomMargin = mmToPoints(labelDimensionsMm.bottomMargin);
   const contentWidth = pageWidth - contentX - rightMargin;
   const contentHeight = pageHeight - topMargin - bottomMargin;
@@ -192,12 +203,12 @@ function streamPdf(pages, res, fileName) {
   doc.pipe(res);
 
   const renderOptions = {
-    primaryFont: 'Courier-Bold',
-    secondaryFont: 'Courier',
+    primaryFont: 'Helvetica-Bold',
+    secondaryFont: 'Helvetica-Bold',
     primaryFontSize: 8,
-    secondaryFontSize: 7.6,
+    secondaryFontSize: 8,
     primaryLineGap: 10,
-    secondaryLineGap: 9.5
+    secondaryLineGap: 10
   };
 
   for (const pageLines of pages) {
