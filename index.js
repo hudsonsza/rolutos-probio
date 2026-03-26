@@ -8,6 +8,7 @@ const config = require('./config');
 const port = Number(process.env.PORT || 3000);
 const POINTS_PER_INCH = 72;
 const MM_PER_INCH = 25.4;
+const PAGE_ROTATION_DEGREES = 270;
 const labelDimensionsMm = {
   width: 125,
   height: 80,
@@ -204,6 +205,7 @@ function streamPdf(pages, res, fileName) {
       size: labelPageSize,
       margin: 0
     });
+    doc.page.dictionary.data.Rotate = PAGE_ROTATION_DEGREES;
     renderPage(doc, pageLines, renderOptions);
   }
 
