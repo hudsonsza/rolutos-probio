@@ -26,3 +26,18 @@ jobs:
           context: .
           push: true
           tags: ghcr.io/${{ github.repository }}:latest
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Coolify Deploy
+        env:
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+          COOLIFY_UUID: ${{ secrets.COOLIFY_UUID }}
+        run: |
+          [ -n "$COOLIFY_TOKEN" ] || exit 0
+          [ -n "$COOLIFY_UUID" ] || exit 0
+
+          curl -fsSL "https://panel.arche.run/api/v1/deploy?uuid=$COOLIFY_UUID&force=false" \
+            -H "Authorization: Bearer $COOLIFY_TOKEN"
