@@ -6,18 +6,13 @@ const PDFDocument = require('pdfkit');
 const config = require('./config');
 
 const port = Number(process.env.PORT || 3000);
-const POINTS_PER_INCH = 72;
-const MM_PER_INCH = 25.4;
-const PDF_PAGE_SIZE = 'A4';
-const labelDimensionsMm = {
-  width: 80,
-  height: 125,
-  paddingTop: 0,
-  innerLeftMargin: 2,
-  topMargin: 2,
-  innerRightMargin: 25,
-  bottomMargin: 2
-};
+const {
+  POINTS_PER_INCH,
+  MM_PER_INCH,
+  PDF_PAGE_SIZE,
+  labelDimensionsMm,
+  renderOptions
+} = config;
 const labelPageSize = [
   mmToPoints(labelDimensionsMm.width),
   mmToPoints(labelDimensionsMm.height)
@@ -227,19 +222,6 @@ function streamPdf(pages, res, fileName) {
   });
 
   doc.pipe(res);
-
-  const renderOptions = {
-    primaryFont: 'Courier-Bold',
-    secondaryFont: 'Courier-Bold',
-    primaryFontSize: 8,
-    secondaryFontSize: 8,
-    primaryLineGap: 10,
-    secondaryLineGap: 10,
-    rotateContentLeft: true,
-    activeBorder: true,
-    borderColor: '#111111',
-    borderWidth: 0.8
-  };
 
   for (const pageLines of pages) {
     doc.addPage({
