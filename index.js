@@ -11,23 +11,12 @@ const MM_PER_INCH = 25.4;
 const labelDimensionsMm = {
   width: 125,
   height: 80,
+  rightHeader: 25,
   innerLeftMargin: 2,
   topMargin: 2,
-  innerRightMargin: 25,
-  bottomMargin: 1
+  innerRightMargin: 2,
+  bottomMargin: 2
 };
-
-const options = {
-  printer: 'Minha Impressora',
-  copies: 1,
-  orientation: 'landscape',
-  paperSize: {
-    width: 125,
-    height: 80
-  }
-};
-
-
 const labelPageSize = [
   mmToPoints(labelDimensionsMm.width),
   mmToPoints(labelDimensionsMm.height)
@@ -123,7 +112,7 @@ function renderPage(doc, pageLines, options) {
   const pageWidth = doc.page.width;
   const contentX = mmToPoints(labelDimensionsMm.innerLeftMargin);
   const topMargin = mmToPoints(labelDimensionsMm.topMargin);
-  const rightMargin = mmToPoints(labelDimensionsMm.innerRightMargin);
+  const rightMargin = mmToPoints(labelDimensionsMm.rightHeader + labelDimensionsMm.innerRightMargin);
   const bottomMargin = mmToPoints(labelDimensionsMm.bottomMargin);
   const contentWidth = pageWidth - contentX - rightMargin;
   const contentHeight = pageHeight - topMargin - bottomMargin;
@@ -202,8 +191,8 @@ function streamPdf(pages, res, fileName) {
   doc.pipe(res);
 
   const renderOptions = {
-    primaryFont: 'Helvetica-Bold',
-    secondaryFont: 'Helvetica-Bold',
+    primaryFont: 'Courier-Bold',
+    secondaryFont: 'Courier-Bold',
     primaryFontSize: 8,
     secondaryFontSize: 8,
     primaryLineGap: 10,
