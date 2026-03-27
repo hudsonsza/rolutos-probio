@@ -1,16 +1,28 @@
+const POINTS_PER_INCH = 72;
+const MM_PER_INCH = 25.4;
+
+function mmToPoints(mm) {
+  return (mm / MM_PER_INCH) * POINTS_PER_INCH;
+}
+
+const labelDimensionsMm = {
+  width: 80,
+  height: 100,
+  paddingTop: 0,
+  innerLeftMargin: 2,
+  topMargin: 2,
+  innerRightMargin: 2,
+  bottomMargin: 2
+};
+
 const config = {
-  POINTS_PER_INCH: 72,
-  MM_PER_INCH: 25.4,
-  PDF_PAGE_SIZE: 'A4',
-  labelDimensionsMm: {
-    width: 80,
-    height: 125,
-    paddingTop: 0,
-    innerLeftMargin: 2,
-    topMargin: 2,
-    innerRightMargin: 25,
-    bottomMargin: 2
-  },
+  POINTS_PER_INCH,
+  MM_PER_INCH,
+  PDF_PAGE_SIZE: [
+    mmToPoints(labelDimensionsMm.width),
+    mmToPoints(labelDimensionsMm.height)
+  ],
+  labelDimensionsMm,
   renderOptions: {
     primaryFont: 'Courier-Bold',
     secondaryFont: 'Courier-Bold',
@@ -19,9 +31,9 @@ const config = {
     primaryLineGap: 10,
     secondaryLineGap: 10,
     rotateContentLeft: true,
-    activeBorder: true,
+    activeBorder: false,
     borderColor: '#111111',
-    borderWidth: 0.8
+    borderWidth: 0
   },
   enteral_url: 'http://www.probio.com.br/sisprobio/sistema/admin/enteral/relatorios/r_enteral.sisprobio',
   parenteral_url: 'http://www.probio.com.br/sisprobio/sistema/admin/parenteral/relatorios/r_parenteral.sisprobio'

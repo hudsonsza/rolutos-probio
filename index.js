@@ -13,10 +13,7 @@ const {
   labelDimensionsMm,
   renderOptions
 } = config;
-const labelPageSize = [
-  mmToPoints(labelDimensionsMm.width),
-  mmToPoints(labelDimensionsMm.height)
-];
+const labelPageSize = PDF_PAGE_SIZE;
 
 function mmToPoints(mm) {
   return (mm / MM_PER_INCH) * POINTS_PER_INCH;
