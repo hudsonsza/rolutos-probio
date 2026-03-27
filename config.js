@@ -7,7 +7,7 @@ function mmToPoints(mm) {
 
 const labelDimensionsMm = {
   width: 80,
-  height: 60,
+  height: 85,
   paddingTop: 0,
   innerLeftMargin: 2,
   topMargin: 2,
