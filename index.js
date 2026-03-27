@@ -6,42 +6,35 @@ const PDFDocument = require('pdfkit');
 const config = require('./config');
 
 const port = Number(process.env.PORT || 3000);
-const {
-  PDF_PAGE_SIZE,
-  labelDimensionsMm,
-  renderOptions,
-  mmToPoints
-} = config;
+const POINTS_PER_INCH = 72;
+const MM_PER_INCH = 25.4;
+const labelDimensionsMm = {
+  width: 110,
+  height: 100,
+  innerLeftMargin: 2,
+  topMargin: 2,
+  innerRightMargin: 2,
+  bottomMargin: 2
+};
 
-function getPageLayout(page, options) {
-  const pageWidth = page.width;
-  const pageHeight = page.height;
-  const paddingTop = mmToPoints(labelDimensionsMm.paddingTop);
-  const leftMargin = mmToPoints(labelDimensionsMm.innerLeftMargin);
-  const topMargin = mmToPoints(labelDimensionsMm.topMargin);
-  const rightMargin = mmToPoints(labelDimensionsMm.innerRightMargin);
-  const bottomMargin = mmToPoints(labelDimensionsMm.bottomMargin);
-  const contentCenterX = pageWidth / 2;
-  const contentCenterY = pageHeight / 2;
-  const isRotatedLeft = options.rotateContentLeft;
-  const logicalAreaWidth = isRotatedLeft ? pageHeight : pageWidth;
-  const logicalAreaHeight = isRotatedLeft ? pageWidth : pageHeight;
-  const logicalAreaX = contentCenterX - (logicalAreaWidth / 2);
-  const logicalAreaY = contentCenterY - (logicalAreaHeight / 2);
+const options = {
+  printer: 'Minha Impressora',
+  copies: 1,
+  orientation: 'landscape',
+  paperSize: {
+    width: 120,
+    height: 80
+  }
+};
 
-  return {
-    contentCenterX,
-    contentCenterY,
-    contentHeight: logicalAreaHeight - paddingTop - topMargin - bottomMargin,
-    contentWidth: logicalAreaWidth - leftMargin - rightMargin,
-    isRotatedLeft,
-    logicalAreaHeight,
-    logicalAreaWidth,
-    logicalAreaX,
-    logicalAreaY,
-    contentX: logicalAreaX + leftMargin,
-    contentY: logicalAreaY + paddingTop + topMargin
-  };
+
+const labelPageSize = [
+  mmToPoints(labelDimensionsMm.width),
+  mmToPoints(labelDimensionsMm.height)
+];
+
+function mmToPoints(mm) {
+  return (mm / MM_PER_INCH) * POINTS_PER_INCH;
 }
 
 function getClient(url) {
@@ -126,36 +119,16 @@ function parseSisprobio(text) {
 }
 
 function renderPage(doc, pageLines, options) {
-  const {
-    contentCenterX,
-    contentCenterY,
-    contentHeight,
-    contentWidth,
-    contentX,
-    contentY,
-    isRotatedLeft,
-    logicalAreaHeight,
-    logicalAreaWidth,
-    logicalAreaX,
-    logicalAreaY
-  } = getPageLayout(doc.page, options);
+  const pageHeight = doc.page.height;
+  const pageWidth = doc.page.width;
+  const contentX = mmToPoints(labelDimensionsMm.innerLeftMargin);
+  const topMargin = mmToPoints(labelDimensionsMm.topMargin);
+  const rightMargin = mmToPoints(labelDimensionsMm.innerRightMargin);
+  const bottomMargin = mmToPoints(labelDimensionsMm.bottomMargin);
+  const contentWidth = pageWidth - contentX - rightMargin;
+  const contentHeight = pageHeight - topMargin - bottomMargin;
   const pageScale = calculatePageScale(pageLines, options, contentHeight);
-  const contentBottomY = contentY + contentHeight;
-  let y = contentY;
-
-  if (isRotatedLeft) {
-    doc.save();
-    doc.rotate(-90, { origin: [contentCenterX, contentCenterY] });
-  }
-
-  if (options.activeBorder) {
-    doc.save();
-    doc.lineWidth(options.borderWidth);
-    doc.strokeColor(options.borderColor);
-    doc.rect(logicalAreaX, logicalAreaY, logicalAreaWidth, logicalAreaHeight);
-    doc.stroke();
-    doc.restore();
-  }
+  let y = topMargin;
 
   for (const line of pageLines) {
     const fontName = line.alternateFont ? options.secondaryFont : options.primaryFont;
@@ -180,13 +153,9 @@ function renderPage(doc, pageLines, options) {
 
     y += lineGap;
 
-    if (y > contentBottomY) {
+    if (y > pageHeight - bottomMargin) {
       break;
     }
-  }
-
-  if (isRotatedLeft) {
-    doc.restore();
   }
 }
 
@@ -210,7 +179,7 @@ function streamPdf(pages, res, fileName) {
 
   const doc = new PDFDocument({
     autoFirstPage: false,
-    size: PDF_PAGE_SIZE,
+    size: labelPageSize,
     margin: 0,
     info: {
       Title: fileName,
@@ -232,9 +201,18 @@ function streamPdf(pages, res, fileName) {
 
   doc.pipe(res);
 
+  const renderOptions = {
+    primaryFont: 'Courier-Bold',
+    secondaryFont: 'Courier-Bold',
+    primaryFontSize: 8,
+    secondaryFontSize: 8,
+    primaryLineGap: 10,
+    secondaryLineGap: 10
+  };
+
   for (const pageLines of pages) {
     doc.addPage({
-      size: PDF_PAGE_SIZE,
+      size: labelPageSize,
       margin: 0
     });
     renderPage(doc, pageLines, renderOptions);
