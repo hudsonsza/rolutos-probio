@@ -5,31 +5,61 @@ function mmToPoints(mm) {
   return (mm / MM_PER_INCH) * POINTS_PER_INCH;
 }
 
+function pixelsToPoints(pixels, pixelsPerInch) {
+  return (pixels / pixelsPerInch) * POINTS_PER_INCH;
+}
+
+const legacyFormConfig = {
+  caption: 'SISPROBIO - Configuracao Rotulo',
+  pixelsPerInch: 96,
+  textHeightPx: 13,
+  font: {
+    name: 'Tahoma',
+    height: -11
+  }
+};
+
 const labelDimensionsMm = {
   width: 80,
-  height: 85,
+  height: 100,
   paddingTop: 0,
   innerLeftMargin: 2,
-  topMargin: 2,
-  innerRightMargin: 2,
-  bottomMargin: 2
+  topMargin: 0,
+  innerRightMargin: 0,
+  bottomMargin: 0
 };
 
 const config = {
   POINTS_PER_INCH,
   MM_PER_INCH,
+  mmToPoints,
+  pixelsToPoints,
   PDF_PAGE_SIZE: [
     mmToPoints(labelDimensionsMm.width),
     mmToPoints(labelDimensionsMm.height)
   ],
+  legacyFormConfig,
   labelDimensionsMm,
   renderOptions: {
-    primaryFont: 'Courier-Bold',
-    secondaryFont: 'Courier-Bold',
-    primaryFontSize: 8,
-    secondaryFontSize: 8,
-    primaryLineGap: 10,
-    secondaryLineGap: 10,
+    sourceFontName: legacyFormConfig.font.name,
+    primaryFont: 'Helvetica',
+    secondaryFont: 'Helvetica',
+    primaryFontSize: pixelsToPoints(
+      Math.abs(legacyFormConfig.font.height),
+      legacyFormConfig.pixelsPerInch
+    ),
+    secondaryFontSize: pixelsToPoints(
+      Math.abs(legacyFormConfig.font.height),
+      legacyFormConfig.pixelsPerInch
+    ),
+    primaryLineGap: pixelsToPoints(
+      legacyFormConfig.textHeightPx,
+      legacyFormConfig.pixelsPerInch
+    ),
+    secondaryLineGap: pixelsToPoints(
+      legacyFormConfig.textHeightPx,
+      legacyFormConfig.pixelsPerInch
+    ),
     rotateContentLeft: true,
     activeBorder: false,
     borderColor: '#111111',

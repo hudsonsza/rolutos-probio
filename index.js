@@ -7,16 +7,41 @@ const config = require('./config');
 
 const port = Number(process.env.PORT || 3000);
 const {
-  POINTS_PER_INCH,
-  MM_PER_INCH,
   PDF_PAGE_SIZE,
   labelDimensionsMm,
-  renderOptions
+  renderOptions,
+  mmToPoints
 } = config;
-const labelPageSize = PDF_PAGE_SIZE;
 
-function mmToPoints(mm) {
-  return (mm / MM_PER_INCH) * POINTS_PER_INCH;
+function getPageLayout(page, options) {
+  const pageWidth = page.width;
+  const pageHeight = page.height;
+  const paddingTop = mmToPoints(labelDimensionsMm.paddingTop);
+  const leftMargin = mmToPoints(labelDimensionsMm.innerLeftMargin);
+  const topMargin = mmToPoints(labelDimensionsMm.topMargin);
+  const rightMargin = mmToPoints(labelDimensionsMm.innerRightMargin);
+  const bottomMargin = mmToPoints(labelDimensionsMm.bottomMargin);
+  const contentCenterX = pageWidth / 2;
+  const contentCenterY = pageHeight / 2;
+  const isRotatedLeft = options.rotateContentLeft;
+  const logicalAreaWidth = isRotatedLeft ? pageHeight : pageWidth;
+  const logicalAreaHeight = isRotatedLeft ? pageWidth : pageHeight;
+  const logicalAreaX = contentCenterX - (logicalAreaWidth / 2);
+  const logicalAreaY = contentCenterY - (logicalAreaHeight / 2);
+
+  return {
+    contentCenterX,
+    contentCenterY,
+    contentHeight: logicalAreaHeight - paddingTop - topMargin - bottomMargin,
+    contentWidth: logicalAreaWidth - leftMargin - rightMargin,
+    isRotatedLeft,
+    logicalAreaHeight,
+    logicalAreaWidth,
+    logicalAreaX,
+    logicalAreaY,
+    contentX: logicalAreaX + leftMargin,
+    contentY: logicalAreaY + paddingTop + topMargin
+  };
 }
 
 function getClient(url) {
@@ -101,32 +126,19 @@ function parseSisprobio(text) {
 }
 
 function renderPage(doc, pageLines, options) {
-  const pageHeight = doc.page.height;
-  const pageWidth = doc.page.width;
-  const labelWidth = labelPageSize[0];
-  const labelHeight = labelPageSize[1];
-  const labelOriginX = (pageWidth - labelWidth) / 2;
-  const labelOriginY = (pageHeight - labelHeight) / 2;
-  const paddingTop = mmToPoints(labelDimensionsMm.paddingTop);
-  const leftMargin = mmToPoints(labelDimensionsMm.innerLeftMargin);
-  const topMargin = mmToPoints(labelDimensionsMm.topMargin);
-  const rightMargin = mmToPoints(labelDimensionsMm.innerRightMargin);
-  const bottomMargin = mmToPoints(labelDimensionsMm.bottomMargin);
-  const outerAreaX = labelOriginX;
-  const outerAreaY = labelOriginY;
-  const outerAreaWidth = labelWidth;
-  const outerAreaHeight = labelHeight;
-  const contentCenterX = outerAreaX + (outerAreaWidth / 2);
-  const contentCenterY = outerAreaY + (outerAreaHeight / 2);
-  const isRotatedLeft = options.rotateContentLeft;
-  const logicalAreaWidth = isRotatedLeft ? outerAreaHeight : outerAreaWidth;
-  const logicalAreaHeight = isRotatedLeft ? outerAreaWidth : outerAreaHeight;
-  const logicalAreaX = contentCenterX - (logicalAreaWidth / 2);
-  const logicalAreaY = contentCenterY - (logicalAreaHeight / 2);
-  const contentX = logicalAreaX + leftMargin;
-  const contentY = logicalAreaY + paddingTop + topMargin;
-  const contentWidth = logicalAreaWidth - leftMargin - rightMargin;
-  const contentHeight = logicalAreaHeight - paddingTop - topMargin - bottomMargin;
+  const {
+    contentCenterX,
+    contentCenterY,
+    contentHeight,
+    contentWidth,
+    contentX,
+    contentY,
+    isRotatedLeft,
+    logicalAreaHeight,
+    logicalAreaWidth,
+    logicalAreaX,
+    logicalAreaY
+  } = getPageLayout(doc.page, options);
   const pageScale = calculatePageScale(pageLines, options, contentHeight);
   const contentBottomY = contentY + contentHeight;
   let y = contentY;
