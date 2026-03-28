@@ -9,10 +9,10 @@ const port = Number(process.env.PORT || 3000);
 const POINTS_PER_INCH = 72;
 const MM_PER_INCH = 25.4;
 const labelDimensionsMm = {
-  width: 110,
+  width: 140,
   height: 100,
   innerLeftMargin: 2,
-  topMargin: 2,
+  topMargin: 5,
   innerRightMargin: 2,
   bottomMargin: 2
 };
