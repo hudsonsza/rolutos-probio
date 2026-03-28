@@ -3,39 +3,28 @@
 const http = require('http');
 const https = require('https');
 const PDFDocument = require('pdfkit');
-const config = require('./config');
+const { labelConfig, mmToPt } = require('./config');
 
 const port = Number(process.env.PORT || 3000);
-const POINTS_PER_INCH = 72;
-const MM_PER_INCH = 25.4;
-const labelDimensionsMm = {
-  width: 140,
-  height: 100,
-  innerLeftMargin: 2,
-  topMargin: 5,
-  innerRightMargin: 2,
-  bottomMargin: 2
+const labelDimensions = labelConfig.labelDimensionsMM || {};
+const renderOptions = {
+  primaryFont: 'Courier-Bold',
+  secondaryFont: 'Courier-Bold',
+  primaryFontSize: 8,
+  secondaryFontSize: 8,
+  primaryLineGap: 10,
+  secondaryLineGap: 10,
+  rotateContentLeft: false,
+  activeBorder: false,
+  borderColor: '#111111',
+  borderWidth: 0,
+  ...labelConfig.renderOptions
 };
-
-const options = {
-  printer: 'Minha Impressora',
-  copies: 1,
-  orientation: 'landscape',
-  paperSize: {
-    width: 120,
-    height: 80
-  }
-};
-
 
 const labelPageSize = [
-  mmToPoints(labelDimensionsMm.width),
-  mmToPoints(labelDimensionsMm.height)
+  mmToPt(labelDimensions.width || 0),
+  mmToPt(labelDimensions.height || 0)
 ];
-
-function mmToPoints(mm) {
-  return (mm / MM_PER_INCH) * POINTS_PER_INCH;
-}
 
 function getClient(url) {
   return url.startsWith('https:') ? https : http;
@@ -121,14 +110,31 @@ function parseSisprobio(text) {
 function renderPage(doc, pageLines, options) {
   const pageHeight = doc.page.height;
   const pageWidth = doc.page.width;
-  const contentX = mmToPoints(labelDimensionsMm.innerLeftMargin);
-  const topMargin = mmToPoints(labelDimensionsMm.topMargin);
-  const rightMargin = mmToPoints(labelDimensionsMm.innerRightMargin);
-  const bottomMargin = mmToPoints(labelDimensionsMm.bottomMargin);
-  const contentWidth = pageWidth - contentX - rightMargin;
-  const contentHeight = pageHeight - topMargin - bottomMargin;
+  const rotateContentLeft = Boolean(options.rotateContentLeft);
+  const contentX = mmToPt(labelDimensions.innerLeftMargin || 0);
+  const topMargin = mmToPt((labelDimensions.topMargin || 0) + (labelDimensions.paddingTop || 0));
+  const rightMargin = mmToPt(labelDimensions.innerRightMargin || 0);
+  const bottomMargin = mmToPt(labelDimensions.bottomMargin || 0);
+  const layoutWidth = rotateContentLeft ? pageHeight : pageWidth;
+  const layoutHeight = rotateContentLeft ? pageWidth : pageHeight;
+  const contentWidth = layoutWidth - contentX - rightMargin;
+  const contentHeight = layoutHeight - topMargin - bottomMargin;
   const pageScale = calculatePageScale(pageLines, options, contentHeight);
   let y = topMargin;
+
+  if (options.activeBorder && options.borderWidth >= 0) {
+    doc.save();
+    doc.lineWidth(options.borderWidth);
+    doc.strokeColor(options.borderColor);
+    doc.rect(0, 0, pageWidth, pageHeight).stroke();
+    doc.restore();
+  }
+
+  if (rotateContentLeft) {
+    doc.save();
+    doc.translate(0, pageHeight);
+    doc.rotate(-90);
+  }
 
   for (const line of pageLines) {
     const fontName = line.alternateFont ? options.secondaryFont : options.primaryFont;
@@ -153,9 +159,13 @@ function renderPage(doc, pageLines, options) {
 
     y += lineGap;
 
-    if (y > pageHeight - bottomMargin) {
+    if (y > layoutHeight - bottomMargin) {
       break;
     }
+  }
+
+  if (rotateContentLeft) {
+    doc.restore();
   }
 }
 
@@ -200,15 +210,6 @@ function streamPdf(pages, res, fileName) {
   });
 
   doc.pipe(res);
-
-  const renderOptions = {
-    primaryFont: 'Courier-Bold',
-    secondaryFont: 'Courier-Bold',
-    primaryFontSize: 8,
-    secondaryFontSize: 8,
-    primaryLineGap: 10,
-    secondaryLineGap: 10
-  };
 
   for (const pageLines of pages) {
     doc.addPage({
@@ -262,12 +263,12 @@ function requestHandler(req, res) {
   }
 
   if (route === '/enteral.pdf') {
-    handlePdfRequest(res, String(config.enteral_url ?? ''), 'enteral.pdf');
+    handlePdfRequest(res, String(labelConfig.urls?.enteral ?? ''), 'enteral.pdf');
     return;
   }
 
   if (route === '/parenteral.pdf') {
-    handlePdfRequest(res, String(config.parenteral_url ?? ''), 'parenteral.pdf');
+    handlePdfRequest(res, String(labelConfig.urls?.parenteral ?? ''), 'parenteral.pdf');
     return;
   }
 
