@@ -3,13 +3,13 @@ const config = {
   MM_PER_INCH: 25.4,
   PDF_PAGE_SIZE: 'A4',
   labelDimensionsMm: {
-    width: 125,
+    width: 125 + 40,
     height: 100,
     paddingTop: 0,
-    innerLeftMargin: 2,
-    topMargin: 2,
+    innerLeftMargin: 3,
+    topMargin: 4,
     innerRightMargin: 40,
-    bottomMargin: 2
+    bottomMargin: 0
   },
   renderOptions: {
     primaryFont: 'Courier-Bold',
