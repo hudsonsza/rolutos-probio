@@ -12,7 +12,7 @@ const PAGE_ROTATION_DEGREES = 270;
 const labelDimensionsMm = {
   width: 125,
   height: 80,
-  rightHeader: 25,
+  rightHeader: 0,
   innerLeftMargin: 3,
   topMargin: 3,
   innerRightMargin: 3,
