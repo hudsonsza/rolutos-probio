@@ -15,7 +15,7 @@ const renderOptions = {
   secondaryFontSize: 8,
   primaryLineGap: 10,
   secondaryLineGap: 10,
-  rotateContentLeft: false,
+  rotateContentLeft: true,
   activeBorder: false,
   borderColor: '#111111',
   borderWidth: 0,

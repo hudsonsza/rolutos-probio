@@ -3,12 +3,12 @@ const config = {
   MM_PER_INCH: 25.4,
   PDF_PAGE_SIZE: 'A4',
   labelDimensionsMm: {
-    width: 125 + 40,
-    height: 100,
+    width: 100,
+    height: 125 + 40,
     paddingTop: 0,
     innerLeftMargin: 3,
     topMargin: 4,
-    innerRightMargin: 40,
+    innerRightMargin: 3,
     bottomMargin: 0
   },
   renderOptions: {
@@ -18,7 +18,7 @@ const config = {
     secondaryFontSize: 8,
     primaryLineGap: 10,
     secondaryLineGap: 10,
-    rotateContentLeft: false,
+    rotateContentLeft: true,
     activeBorder: false,
     borderColor: '#111111',
     borderWidth: 0
