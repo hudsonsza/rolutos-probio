@@ -6,63 +6,25 @@ const PDFDocument = require('pdfkit');
 const config = require('./config');
 
 const port = Number(process.env.PORT || 3000);
-const debugEnabled = ['1', 'true', 'yes', 'on'].includes(String(process.env.DEBUG || '').toLowerCase());
-const labelDimensions = config.labelDimensionsMm || {};
-const renderOptions = {
-  primaryFont: 'Courier-Bold',
-  secondaryFont: 'Courier-Bold',
-  primaryFontSize: 8,
-  secondaryFontSize: 8,
-  primaryLineGap: 10,
-  secondaryLineGap: 10,
-  rotateContentLeft: true,
-  activeBorder: false,
-  borderColor: '#111111',
-  borderWidth: 0,
-  ...config.renderOptions
+const POINTS_PER_INCH = 72;
+const MM_PER_INCH = 25.4;
+const PAGE_ROTATION_DEGREES = 270;
+const labelDimensionsMm = {
+  width: 125,
+  height: 80,
+  rightHeader: 25,
+  innerLeftMargin: 3,
+  topMargin: 3,
+  innerRightMargin: 3,
+  bottomMargin: 3
 };
-
 const labelPageSize = [
-  mmToPt(labelDimensions.width || 0),
-  mmToPt(labelDimensions.height || 0)
+  mmToPoints(labelDimensionsMm.width),
+  mmToPoints(labelDimensionsMm.height)
 ];
 
-function unixTimestamp() {
-  return Math.floor(Date.now() / 1000);
-}
-
-function formatLogValue(value) {
-  if (value === null || value === undefined) {
-    return 'null';
-  }
-
-  if (typeof value === 'number' || typeof value === 'boolean') {
-    return String(value);
-  }
-
-  return JSON.stringify(String(value));
-}
-
-function log(level, message, meta = {}) {
-  if (level === 'debug' && !debugEnabled) {
-    return;
-  }
-
-  const parts = [
-    String(unixTimestamp()),
-    `level=${level}`,
-    `msg=${formatLogValue(message)}`
-  ];
-
-  for (const [key, value] of Object.entries(meta)) {
-    parts.push(`${key}=${formatLogValue(value)}`);
-  }
-
-  process.stderr.write(`${parts.join(' ')}\n`);
-}
-
-function mmToPt(mm) {
-  return (mm / config.MM_PER_INCH) * config.POINTS_PER_INCH;
+function mmToPoints(mm) {
+  return (mm / MM_PER_INCH) * POINTS_PER_INCH;
 }
 
 function getClient(url) {
@@ -73,22 +35,13 @@ function decodeSisprobio(buffer) {
   return buffer.toString('latin1');
 }
 
-async function fetchUrlBuffer(url, redirectCount = 0) {
-  log('debug', 'fetch.start', { url, redirectCount });
-
+async function fetchUrlBuffer(url) {
   return new Promise((resolve, reject) => {
     const req = getClient(url).get(url, (res) => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         const redirectUrl = new URL(res.headers.location, url).toString();
-
-        log('debug', 'fetch.redirect', {
-          url,
-          redirectUrl,
-          statusCode: res.statusCode
-        });
-
         res.resume();
-        fetchUrlBuffer(redirectUrl, redirectCount + 1).then(resolve, reject);
+        fetchUrlBuffer(redirectUrl).then(resolve, reject);
         return;
       }
 
@@ -105,14 +58,7 @@ async function fetchUrlBuffer(url, redirectCount = 0) {
       });
 
       res.on('end', () => {
-        const buffer = Buffer.concat(chunks);
-
-        log('debug', 'fetch.success', {
-          url,
-          bytes: buffer.length
-        });
-
-        resolve(buffer);
+        resolve(Buffer.concat(chunks));
       });
 
       res.on('error', reject);
@@ -158,7 +104,6 @@ function parseSisprobio(text) {
   }
 
   pushPage();
-  log('debug', 'parse.complete', { pages: pages.length, lines: lines.length });
 
   return pages;
 }
@@ -166,31 +111,14 @@ function parseSisprobio(text) {
 function renderPage(doc, pageLines, options) {
   const pageHeight = doc.page.height;
   const pageWidth = doc.page.width;
-  const rotateContentLeft = Boolean(options.rotateContentLeft);
-  const contentX = mmToPt(labelDimensions.innerLeftMargin || 0);
-  const topMargin = mmToPt((labelDimensions.topMargin || 0) + (labelDimensions.paddingTop || 0));
-  const rightMargin = mmToPt(labelDimensions.innerRightMargin || 0);
-  const bottomMargin = mmToPt(labelDimensions.bottomMargin || 0);
-  const layoutWidth = rotateContentLeft ? pageHeight : pageWidth;
-  const layoutHeight = rotateContentLeft ? pageWidth : pageHeight;
-  const contentWidth = layoutWidth - contentX - rightMargin;
-  const contentHeight = layoutHeight - topMargin - bottomMargin;
+  const contentX = mmToPoints(labelDimensionsMm.innerLeftMargin);
+  const topMargin = mmToPoints(labelDimensionsMm.topMargin);
+  const rightMargin = mmToPoints(labelDimensionsMm.rightHeader + labelDimensionsMm.innerRightMargin);
+  const bottomMargin = mmToPoints(labelDimensionsMm.bottomMargin);
+  const contentWidth = pageWidth - contentX - rightMargin;
+  const contentHeight = pageHeight - topMargin - bottomMargin;
   const pageScale = calculatePageScale(pageLines, options, contentHeight);
   let y = topMargin;
-
-  if (options.activeBorder && options.borderWidth >= 0) {
-    doc.save();
-    doc.lineWidth(options.borderWidth);
-    doc.strokeColor(options.borderColor);
-    doc.rect(0, 0, pageWidth, pageHeight).stroke();
-    doc.restore();
-  }
-
-  if (rotateContentLeft) {
-    doc.save();
-    doc.translate(0, pageHeight);
-    doc.rotate(-90);
-  }
 
   for (const line of pageLines) {
     const fontName = line.alternateFont ? options.secondaryFont : options.primaryFont;
@@ -200,7 +128,6 @@ function renderPage(doc, pageLines, options) {
     doc.font(fontName);
     doc.fontSize(fontSize);
     doc.fillColor('#111111');
-
     const lineWidth = doc.widthOfString(line.text);
     const horizontalScale = lineWidth > contentWidth ? contentWidth / lineWidth : 1;
 
@@ -216,13 +143,9 @@ function renderPage(doc, pageLines, options) {
 
     y += lineGap;
 
-    if (y > layoutHeight - bottomMargin) {
+    if (y > pageHeight - bottomMargin) {
       break;
     }
-  }
-
-  if (rotateContentLeft) {
-    doc.restore();
   }
 }
 
@@ -230,10 +153,13 @@ function calculatePageScale(pageLines, options, contentHeight) {
   let totalHeight = 0;
 
   for (const line of pageLines) {
-    totalHeight += line.alternateFont ? options.secondaryLineGap : options.primaryLineGap;
+    const lineGap = line.alternateFont ? options.secondaryLineGap : options.primaryLineGap;
+    totalHeight += lineGap;
   }
 
-  return totalHeight > 0 ? Math.min(1, contentHeight / totalHeight) : 1;
+  const heightScale = totalHeight > 0 ? Math.min(1, contentHeight / totalHeight) : 1;
+
+  return heightScale;
 }
 
 function streamPdf(pages, res, fileName) {
@@ -259,24 +185,30 @@ function streamPdf(pages, res, fileName) {
   });
 
   doc.on('error', (err) => {
-    log('error', 'pdf.stream_error', {
-      fileName,
-      error: err.message || String(err)
-    });
+    console.error(err.message || err);
     res.destroy(err);
   });
 
   doc.pipe(res);
+
+  const renderOptions = {
+    primaryFont: 'Courier-Bold',
+    secondaryFont: 'Courier-Bold',
+    primaryFontSize: 10,
+    secondaryFontSize: 9.5,
+    primaryLineGap: 10,
+    secondaryLineGap: 9.5
+  };
 
   for (const pageLines of pages) {
     doc.addPage({
       size: labelPageSize,
       margin: 0
     });
+    doc.page.dictionary.data.Rotate = PAGE_ROTATION_DEGREES;
     renderPage(doc, pageLines, renderOptions);
   }
 
-  log('debug', 'pdf.ready', { fileName, pages: pages.length });
   doc.end();
 }
 
@@ -288,12 +220,8 @@ function sendText(res, statusCode, body) {
   res.end(body);
 }
 
-async function handlePdfRequest(req, res, sourceUrl, fileName) {
+async function handlePdfRequest(res, sourceUrl, fileName) {
   if (!sourceUrl) {
-    log('error', 'request.config_missing', {
-      path: req.url,
-      fileName
-    });
     sendText(res, 500, 'Missing URL in config.js.\n');
     return;
   }
@@ -302,26 +230,10 @@ async function handlePdfRequest(req, res, sourceUrl, fileName) {
     const buffer = await fetchUrlBuffer(sourceUrl);
     const text = decodeSisprobio(buffer);
     const pages = parseSisprobio(text);
-
-    log('info', 'request.render', {
-      method: req.method,
-      path: req.url,
-      fileName,
-      pages: pages.length
-    });
-
     streamPdf(pages, res, fileName);
   } catch (err) {
     const message = err && err.message ? err.message : String(err);
     const statusCode = message.includes('HTTP 404') ? 404 : 500;
-
-    log('error', 'request.failed', {
-      method: req.method,
-      path: req.url,
-      fileName,
-      statusCode,
-      error: message
-    });
 
     if (!res.headersSent) {
       sendText(res, statusCode, `${message}\n`);
@@ -335,54 +247,31 @@ function requestHandler(req, res) {
   const requestUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const route = requestUrl.pathname;
 
-  log('debug', 'request.start', {
-    method: req.method,
-    path: route
-  });
-
   if (req.method !== 'GET') {
-    log('info', 'request.method_not_allowed', {
-      method: req.method,
-      path: route
-    });
     sendText(res, 405, 'Method Not Allowed\n');
     return;
   }
 
   if (route === '/enteral.pdf') {
-    handlePdfRequest(req, res, String(config.enteral_url ?? ''), 'enteral.pdf');
+    handlePdfRequest(res, String(config.enteral_url ?? ''), 'enteral.pdf');
     return;
   }
 
   if (route === '/parenteral.pdf') {
-    handlePdfRequest(req, res, String(config.parenteral_url ?? ''), 'parenteral.pdf');
+    handlePdfRequest(res, String(config.parenteral_url ?? ''), 'parenteral.pdf');
     return;
   }
 
   if (route === '/' || route === '') {
-    log('info', 'request.healthcheck', { path: route || '/' });
-    sendText(res, 200, 'ok\n');
+    sendText(res, 200, `ok\n`);
     return;
   }
 
-  log('info', 'request.not_found', { path: route });
   sendText(res, 404, 'Not Found\n');
 }
 
 const server = http.createServer(requestHandler);
 
-server.on('error', (err) => {
-  log('error', 'server.error', {
-    port,
-    error: err.message || String(err)
-  });
-});
-
 server.listen(port, () => {
-  log('info', 'server.listen', {
-    port,
-    labelWidthMm: labelDimensions.width || 0,
-    labelHeightMm: labelDimensions.height || 0,
-    debug: debugEnabled
-  });
+  console.log(`Server listening on http://localhost:${port}`);
 });
